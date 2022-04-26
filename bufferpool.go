@@ -1,13 +1,15 @@
 package bufferpool
 
 import (
-	"bytes"
+	"fmt"
 	"sync"
+	"sync/atomic"
 )
 
 // Package bufferpool is a simple wrapper around sync.Pool that is specific
 // to bytes.Buffer.
 
+/*
 var global = New()
 
 // Get returns a bytes.Buffer from a global pool
@@ -19,31 +21,62 @@ func Get() *bytes.Buffer {
 func Release(buf *bytes.Buffer) {
 	global.Release(buf)
 }
+*/
 
 // BufferPool is a sync.Pool for bytes.Buffer objects
 type BufferPool struct {
-	pool sync.Pool
+	pool  sync.Pool
+	count uint32
+	alloc uint32
 }
 
 // New creates a new BufferPool instance
-func New() *BufferPool {
+func New(new func() interface{}) *BufferPool {
 	var bp BufferPool
-	bp.pool.New = allocBuffer
+	bp.pool.New = func() interface{} {
+		newItem := new()
+
+		atomic.AddUint32(&bp.alloc, 1)
+		atomic.AddUint32(&bp.count, 1)
+		/*
+			runtime.SetFinalizer(newItem, func(newItem interface{}) {
+				atomic.AddUint32(&bp.count, ^uint32(0))
+			})
+		*/
+
+		return newItem
+	}
+
 	return &bp
 }
 
-func allocBuffer() interface{} {
-	return &bytes.Buffer{}
+func (bp *BufferPool) GetCount() (uint32, uint32) {
+	return bp.alloc, bp.count
 }
 
 // Get returns a bytes.Buffer from the specified pool
-func (bp *BufferPool) Get() *bytes.Buffer {
-	return bp.pool.Get().(*bytes.Buffer)
+func (bp *BufferPool) Get() interface{} {
+	e := bp.pool.Get().(ElementInterface)
+	el := e.GetElement()
+	atomic.AddUint32(&el.ref, 1)
+
+	atomic.AddUint32(&bp.count, ^uint32(0))
+
+	return e.GetItem()
 }
 
 // Release puts the given bytes.Buffer back in the specified pool after
 // resetting it
-func (bp *BufferPool) Release(buf *bytes.Buffer) {
-	buf.Reset()
-	bp.pool.Put(buf)
+func (bp *BufferPool) Release(e ElementInterface) {
+	el := e.GetElement()
+	atomic.AddUint32(&el.ref, ^uint32(0))
+	atomic.AddUint32(&bp.count, 1)
+
+	if el.ref != 0 {
+		fmt.Printf("Ref is not zero: %d \n", el.ref)
+		el.ref = 0
+	}
+
+	//i := e.GetItem()
+	bp.pool.Put(e)
 }

@@ -1,11 +1,10 @@
 package bufferpool
 
 type Element struct {
-	ref int
+	ref uint32
 }
 
 type ElementInterface interface {
-	GetElement() Element
-	GetItem() interfce{}
+	GetElement() *Element
+	GetItem() interface{}
 }
-
