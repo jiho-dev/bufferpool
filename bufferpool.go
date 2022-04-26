@@ -56,13 +56,16 @@ func (bp *BufferPool) GetCount() (uint32, uint32) {
 
 // Get returns a bytes.Buffer from the specified pool
 func (bp *BufferPool) Get() interface{} {
-	e := bp.pool.Get().(ElementInterface)
+	d := bp.pool.Get()
+	e := d.(ElementInterface)
 	el := e.GetElement()
 	atomic.AddUint32(&el.ref, 1)
+	el.pool = bp
 
 	atomic.AddUint32(&bp.count, ^uint32(0))
 
-	return e.GetItem()
+	//return e.GetItem()
+	return d
 }
 
 // Release puts the given bytes.Buffer back in the specified pool after
@@ -79,4 +82,9 @@ func (bp *BufferPool) Release(e ElementInterface) {
 
 	//i := e.GetItem()
 	bp.pool.Put(e)
+}
+
+func Release(e ElementInterface) {
+	el := e.GetElement()
+	el.pool.Release(el)
 }

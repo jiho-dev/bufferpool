@@ -47,8 +47,10 @@ func TestUsage(t *testing.T) {
 	fmt.Printf("pool.Count: alloc=%d, count=%d \n", a, c)
 
 	for _, e := range all {
-		pool.Release(e)
-		//delete(e)
+		//pool.Release(e)
+
+		// XXX: don't need pool pointer
+		bufferpool.Release(e)
 	}
 
 	a, c = pool.GetCount()
