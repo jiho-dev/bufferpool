@@ -1,4 +1,4 @@
-module github.com/lestrrat-go/bufferpool
+module github.com/jiho-dev/objectpool
 
 go 1.16
 
